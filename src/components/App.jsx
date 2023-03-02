@@ -1,6 +1,6 @@
 import '../index.css';
 
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import { Searchbar } from './Searchbar/Searchbar';
 import { ImageGallery } from './ImageGallery/ImageGallery';
 import { Button } from './Button/Button';
@@ -10,101 +10,83 @@ import { WarningMessage } from './Messages/WarningMessage';
 
 import { getPost } from 'shared/api/posts';
 import { Hearts } from 'react-loader-spinner';
-export class App extends Component {
-  state = {
-    items: [],
-    page: 1,
-    loader: false,
-    error: '',
-    message: false,
-    searchRequest: '',
-    showModal: false,
-    largeImageURL: '',
-    tags: '',
-  };
+export const App = () => {
+  const [items, setItems] = useState([]);
+  const [page, setPage] = useState(1);
+  const [loader, setLoader] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState(false);
+  const [searchRequest, setSearchRequest] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [largeImageURL, setLargeImageURL] = useState('');
+  const [tags, setTags] = useState('');
 
-  componentDidUpdate(_, prevState) {
-    const { searchRequest, page } = this.state;
-
-    if (prevState.searchRequest !== searchRequest || prevState.page !== page) {
-      this.featchPost(prevState);
+  useEffect(() => {
+    const featchPost = async () => {
+      try {
+        setLoader(true);
+        setMessage(false);
+        const {
+          data: { hits },
+        } = await getPost(searchRequest, page);
+        if (hits.length) {
+          setItems(prevState => [...prevState, ...hits]);
+        } else {
+          setItems([]);
+          setMessage(true);
+        }
+      } catch ({ response: { data } }) {
+        setError(
+          data || 'Error! Unable to load the image, please try again later!'
+        );
+      } finally {
+        setLoader(false);
+      }
+    };
+    if (searchRequest) {
+      featchPost();
     }
-  }
+  }, [searchRequest, page]);
 
-  async featchPost() {
-    const { searchRequest, page } = this.state;
-
-    try {
-      this.setState({ loader: true, message: false });
-      const {
-        data: { hits },
-      } = await getPost(searchRequest, page);
-      hits.length
-        ? this.setState(prevState => ({
-            items: [...prevState.items, ...hits],
-          }))
-        : this.setState({ items: [], message: true });
-    } catch ({ response: { data } }) {
-      this.setState({
-        error:
-          data || 'Error! Unable to load the image, please try again later!',
-      });
-    } finally {
-      this.setState({ loader: false });
-    }
-  }
-
-  onSubmit = inputValue => {
-    this.setState({
-      items: [],
-      page: 1,
-      searchRequest: inputValue,
-    });
+  const onSubmit = inputValue => {
+    setItems([]);
+    setPage(1);
+    setSearchRequest(inputValue);
   };
 
-  loadMore = () => {
-    this.setState(({ page }) => ({
-      page: page + 1,
-    }));
+  const loadMore = () => {
+    setPage(page + 1);
   };
 
-  showModal = (largeImageURL, tags) => {
-    this.setState({
-      showModal: true,
-      largeImageURL,
-      tags,
-    });
+  const showModalFunc = (largeImageURL, tags) => {
+    setShowModal(true);
+    setLargeImageURL(largeImageURL);
+    setTags(tags);
   };
 
-  closeModal = e => {
-    this.setState({
-      showModal: false,
-    });
+  const closeModal = e => {
+    setShowModal(false);
   };
 
-  render() {
-    const { items, loader, error, message, showModal, largeImageURL, tags } =
-      this.state;
-    return (
-      <div className="App">
-        {showModal && (
-          <Modal closeModal={this.closeModal}>
-            <img src={largeImageURL} alt={tags} />
-          </Modal>
-        )}
-        <Searchbar onSubmit={this.onSubmit} />
-        {error && <ErrorMessage error={error} />}
-        {message && <WarningMessage />}
-        <ImageGallery items={items} showModal={this.showModal} />
-        {loader && (
-          <Hearts
-            color="#4fa94d"
-            ariaLabel="hearts-loading"
-            wrapperClass="Loader"
-          />
-        )}
-        {Boolean(items.length) && <Button loadMore={this.loadMore} />}
-      </div>
-    );
-  }
-}
+  return (
+    <div className="App">
+      {showModal && (
+        <Modal closeModal={closeModal}>
+          <img src={largeImageURL} alt={tags} />
+        </Modal>
+      )}
+      <Searchbar onSubmit={onSubmit} />
+      {error && <ErrorMessage error={error} />}
+      {message && <WarningMessage />}
+      <ImageGallery items={items} showModalFunc={showModalFunc} />
+      {loader && (
+        <Hearts
+          color="#4fa94d"
+          ariaLabel="hearts-loading"
+          wrapperClass="Loader"
+        />
+      )}
+      {Boolean(items.length) && <Button loadMore={loadMore} />}
+    </div>
+  );
+};
