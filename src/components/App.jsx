@@ -20,17 +20,24 @@ export const App = () => {
   const [showModal, setShowModal] = useState(false);
   const [largeImageURL, setLargeImageURL] = useState('');
   const [tags, setTags] = useState('');
+  const [toDownload, setToDownload] = useState(false);
+
+  const perPage = 12;
 
   useEffect(() => {
     const featchPost = async () => {
       try {
         setLoader(true);
         setMessage(false);
-        const {
-          data: { hits },
-        } = await getPost(searchRequest, page);
-        if (hits.length) {
-          setItems(prevState => [...prevState, ...hits]);
+        setToDownload(false);
+        const { data } = await getPost(searchRequest, page, perPage);
+        if (data.hits.length) {
+          setItems(prevState => [...prevState, ...data.hits]);
+          if (data.hits.length < perPage) {
+            setToDownload(false);
+          } else {
+            setToDownload(true);
+          }
         } else {
           setItems([]);
           setMessage(true);
@@ -49,13 +56,15 @@ export const App = () => {
   }, [searchRequest, page]);
 
   const onSubmit = inputValue => {
-    setItems([]);
-    setPage(1);
-    setSearchRequest(inputValue);
+    if (searchRequest !== inputValue) {
+      setItems([]);
+      setPage(1);
+      setSearchRequest(inputValue);
+    }
   };
 
   const loadMore = () => {
-    setPage(page + 1);
+    setPage(prevPage => prevPage + 1);
   };
 
   const showModalFunc = (largeImageURL, tags) => {
@@ -78,7 +87,9 @@ export const App = () => {
       <Searchbar onSubmit={onSubmit} />
       {error && <ErrorMessage error={error} />}
       {message && <WarningMessage />}
-      <ImageGallery items={items} showModalFunc={showModalFunc} />
+      {Boolean(items.length) && (
+        <ImageGallery items={items} showModalFunc={showModalFunc} />
+      )}
       {loader && (
         <Hearts
           color="#4fa94d"
@@ -86,7 +97,7 @@ export const App = () => {
           wrapperClass="Loader"
         />
       )}
-      {Boolean(items.length) && <Button loadMore={loadMore} />}
+      {toDownload && <Button loadMore={loadMore} />}
     </div>
   );
 };
